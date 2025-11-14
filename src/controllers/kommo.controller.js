@@ -46,7 +46,7 @@ export async function kommoWebhook(req, res) {
 
 }
 
-async function processKommoMessage(normalized, contact) {
+async function processKommoMessage(normalized) {
 
   const contact = await getContact(normalized.contact_id);
 
