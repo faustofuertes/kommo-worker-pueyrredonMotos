@@ -1,9 +1,8 @@
 import { parseIncoming } from "../utils/parser.js";
 import { normalizeIncomingMessage } from "../utils/normalizer.js";
 import { patchMetadata, sendMessageToLaburenAgent } from "../services/laburen.service.js";
-import { getContact, addNoteToLead, getLead } from "../services/kommo.service.js";
+import { getContact, addNoteToLead } from "../services/kommo.service.js";
 import { sendWppMessage } from "../services/whatsapp.services.js";
-import { getCheckboxValue } from "../utils/getCheckboxValue.js";
 
 const idsPausados = new Set();
 const conversationMap = new Map();
@@ -22,18 +21,22 @@ export async function kommoWebhook(req, res) {
 
     const parsed = parseIncoming(raw, contentType);
 
-    const normalized = normalizeIncomingMessage(parsed);
-    const contact = await getContact(normalized.contact_id);
+    if (parsed?.message?.add) {
 
-    const lead = getLead(normalized.element_id);
-    const checkBoxValue = getCheckboxValue(lead, 1493142); /// 1493142 -> id del campo switch agente
-    console.log("Valor del checkbox ->", checkBoxValue);
+      const normalized = normalizeIncomingMessage(parsed);
+      const contact = await getContact(normalized.contact_id);
+      if (normalized.origin === 'waba' && whiteList.includes(contact.phone)) {
+        await processKommoMessage(normalized, contact);
+        console.log('--------------------------------------------------------------------------------------------------------------------------------------------------------');
+      }
 
-    if (checkBoxValue === true && whiteList.includes(contact.phone)) {
-      await processKommoMessage(normalized, contact);
-      console.log('--------------------------------------------------------------------------------------------------------------------------------------------------------');
-    } else if (checkBoxValue === false) {
-      console.log("Objeto pausado");
+    } else if (parsed?.leads?.note) {
+
+      const noteObj = parsed.leads.note[0]?.note;
+      processKommoNote(noteObj.text.toLowerCase().trim(), noteObj.element_id);
+
+    } else {
+      console.log("⚠️ Payload recibido pero no es mensaje ni nota:", parsed);
     }
 
   } catch (err) {
@@ -43,7 +46,9 @@ export async function kommoWebhook(req, res) {
 
 }
 
-async function processKommoMessage(normalized, contact) {
+async function processKommoMessage(normalized) {
+
+  const contact = await getContact(normalized.contact_id);
 
   let conversationId;
   let data;
@@ -84,5 +89,28 @@ async function processKommoMessage(normalized, contact) {
   await sendWppMessage(contact.phone, answer);
   await addNoteToLead(normalized.element_id, answer, contact.name);
 
+  return;
+}
+
+function processKommoNote(note, element_id) {
+
+  if (note === "agente pausar") {
+    if (idsPausados.has(element_id)) {
+      console.log(`⚠️ Este elemento ${element_id} ya esta pausado.`);
+    }
+    else {
+      idsPausados.add(element_id);
+      console.log(`⏸️ El elemento ${element_id} ha sido pausado.`);
+    }
+    console.log('--------------------------------------------------------------------------------------------------------------------------------------------------------');
+  } else if (note === "agente seguir") {
+    if (idsPausados.has(element_id)) {
+      idsPausados.delete(element_id);
+      console.log(`▶️ El elemento ${element_id} ha sido reanudado.`);
+    } else {
+      console.log(`⚠️ Este elemento ${element_id} no esta pausado.`);
+    }
+    console.log('--------------------------------------------------------------------------------------------------------------------------------------------------------');
+  }
   return;
 }
