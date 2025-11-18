@@ -1,7 +1,8 @@
 import { parseIncoming } from "../utils/parser.js";
 import { normalizeIncomingMessage } from "../utils/normalizer.js";
+import { getCheckboxValue } from "../utils/getCheckboxValue.js";
 import { patchMetadata, sendMessageToLaburenAgent } from "../services/laburen.service.js";
-import { getContact, addNoteToLead } from "../services/kommo.service.js";
+import { getContact, addNoteToLead, getLead } from "../services/kommo.service.js";
 import { sendWppMessage } from "../services/whatsapp.services.js";
 
 const idsPausados = new Set();
@@ -25,6 +26,11 @@ export async function kommoWebhook(req, res) {
 
       const normalized = normalizeIncomingMessage(parsed);
       const contact = await getContact(normalized.contact_id);
+
+      const lead = await getLead(normalized.element_id);
+      const checkboxValue = getCheckboxValue(lead, 1493142);
+
+      console.log('Checkbox value -> ', checkboxValue);
       if (normalized.origin === 'waba' && whiteList.includes(contact.phone)) {
         await processKommoMessage(normalized, contact);
         console.log('--------------------------------------------------------------------------------------------------------------------------------------------------------');
