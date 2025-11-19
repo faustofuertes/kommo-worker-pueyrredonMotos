@@ -5,7 +5,6 @@ import { patchMetadata, sendMessageToLaburenAgent } from "../services/laburen.se
 import { getContact, addNoteToLead, getLead } from "../services/kommo.service.js";
 import { sendWppMessage } from "../services/whatsapp.services.js";
 
-const idsPausados = new Set();
 const conversationMap = new Map();
 const whiteList = ['+5491122525125', '+5492233454259', '+5493548412165', '+5493584017740', '+5493584176017', '+5493584238794',
   '+5493584268918', '+5493585066555', '+5493585068050', '+5493585089089', '+5493586020182', '+5492291527949'];
@@ -22,34 +21,24 @@ export async function kommoWebhook(req, res) {
 
     const parsed = parseIncoming(raw, contentType);
 
-    if (parsed?.message?.add) {
+    const normalized = normalizeIncomingMessage(parsed);
+    const contact = await getContact(normalized.contact_id);
+    const lead = await getLead(normalized.element_id);
+    const checkboxValue = getCheckboxValue(lead, 1493146);
 
-      const normalized = normalizeIncomingMessage(parsed);
-      const contact = await getContact(normalized.contact_id);
-
-      if (normalized.origin === 'waba' && whiteList.includes(contact.phone)) {
-        const lead = await getLead(normalized.element_id);
-        const checkBoxValue = getCheckboxValue(lead, 1493146);
-
-        console.log(`Custom field values`, lead.custom_fields_values[0]);
-        console.log('Checkbox value -> ', checkBoxValue);
-
-        await processKommoMessage(normalized, contact);
-        console.log('--------------------------------------------------------------------------------------------------------------------------------------------------------');
-      }
-
-    } else if (parsed?.leads?.note) {
-
-      const noteObj = parsed.leads.note[0]?.note;
-      processKommoNote(noteObj.text.toLowerCase().trim(), noteObj.element_id);
-
-    } else {
-      console.log("⚠️ Payload recibido pero no es mensaje ni nota:", parsed);
+    if (normalized.origin === 'waba' && whiteList.includes(contact.phone) && checkboxValue === true) {
+      await processKommoMessage(normalized, contact);
+      console.log('--------------------------------------------------------------------------------------------------------------------------------------------------------');
     }
+    else if (normalized.origin === 'waba' && whiteList.includes(contact.phone) && checkboxValue === false) {
+      console.log(`⚠️ El lead ${normalized.element_id} esta pausado.`);
+      console.log('--------------------------------------------------------------------------------------------------------------------------------------------------------');
+    }
+
 
   } catch (err) {
     console.error("Error en kommoWebhook:", err);
-    console.log('--------------------------------------------------------------------------------------------------------------------------------------------------------');
+    console.log('-------------------------------------------------------------------------------------------------------------------------------------------------------');
   }
 
 }
@@ -60,11 +49,6 @@ async function processKommoMessage(normalized) {
 
   let conversationId;
   let data;
-
-  if (idsPausados.has(normalized.element_id)) {
-    console.log(`⚠️ El elemento ${normalized.element_id} esta pausado, no se enviara Laburen.`);
-    return;
-  }
 
   // --- Manejo de conversación en Laburen ---
   if (conversationMap.has(normalized.contact_id)) {
@@ -97,28 +81,5 @@ async function processKommoMessage(normalized) {
   await sendWppMessage(contact.phone, answer);
   await addNoteToLead(normalized.element_id, answer, contact.name);
 
-  return;
-}
-
-function processKommoNote(note, element_id) {
-
-  if (note === "agente pausar") {
-    if (idsPausados.has(element_id)) {
-      console.log(`⚠️ Este elemento ${element_id} ya esta pausado.`);
-    }
-    else {
-      idsPausados.add(element_id);
-      console.log(`⏸️ El elemento ${element_id} ha sido pausado.`);
-    }
-    console.log('--------------------------------------------------------------------------------------------------------------------------------------------------------');
-  } else if (note === "agente seguir") {
-    if (idsPausados.has(element_id)) {
-      idsPausados.delete(element_id);
-      console.log(`▶️ El elemento ${element_id} ha sido reanudado.`);
-    } else {
-      console.log(`⚠️ Este elemento ${element_id} no esta pausado.`);
-    }
-    console.log('--------------------------------------------------------------------------------------------------------------------------------------------------------');
-  }
   return;
 }

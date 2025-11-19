@@ -15,7 +15,7 @@ export async function getLead(leadId) {
       }
     );
     
-    return res || null;
+    return res.data || null;
 
   } catch (error) {
     console.error("Error en getLead:", error?.response?.data || error);
