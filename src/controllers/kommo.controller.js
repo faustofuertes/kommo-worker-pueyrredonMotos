@@ -5,6 +5,9 @@ import { patchMetadata, sendMessageToLaburenAgent } from "../services/laburen.se
 import { getContact, getLead, updateLead, launchSalesBot } from "../services/kommo.service.js";
 
 const conversationMap = new Map();
+const KOMMO_SWITCH_ID = process.env.KOMMO_TEXT_FIELD_ID;
+const KOMMO_TEXT_FIELD_ID = Number(process.env.KOMMO_TEXT_FIELD_ID);
+const KOMMO_BOT_ID = process.env.KOMMO_BOT_ID;
 
 export async function kommoWebhook(req, res) {
   res.sendStatus(204); // responder rápido 
@@ -20,7 +23,7 @@ export async function kommoWebhook(req, res) {
     const normalized = normalizeIncomingMessage(parsed);
     const contact = await getContact(normalized.contact_id);
     const lead = await getLead(normalized.element_id);
-    const checkboxValue = getCheckboxValue(lead, 1493146);
+    const checkboxValue = getCheckboxValue(lead, KOMMO_SWITCH_ID);
 
     if (checkboxValue === true) {
       await processKommoMessage(normalized, contact);
@@ -70,8 +73,6 @@ async function processKommoMessage(normalized, contact) {
   console.log(`${contact.name}: ${normalized.text}`);
   console.log(`Agente: ${answer}`);
 
-  const KOMMO_TEXT_FIELD_ID = Number(process.env.KOMMO_TEXT_FIELD_ID);
-  const KOMMO_BOT_ID = process.env.KOMMO_BOT_ID;
   await updateLead(normalized.element_id, KOMMO_TEXT_FIELD_ID, answer);
   await launchSalesBot(KOMMO_BOT_ID, normalized.element_id, 2);
 
