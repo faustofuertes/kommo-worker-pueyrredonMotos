@@ -30,8 +30,8 @@ export async function kommoWebhook(req, res) {
       if (normalized.origin === 'waba' && whiteList.includes(contact.phone)) {
         const lead = await getLead(normalized.element_id);
         const checkBoxValue = getCheckboxValue(lead, 1493146);
+        
         console.log(JSON.stringify(lead, null, 2));
-        console.log("CF:", lead.custom_fields_values);        
         console.log('Checkbox value -> ', checkBoxValue);
 
         await processKommoMessage(normalized, contact);
