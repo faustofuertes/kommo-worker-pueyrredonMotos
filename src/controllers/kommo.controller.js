@@ -5,7 +5,7 @@ import { patchMetadata, sendMessageToLaburenAgent } from "../services/laburen.se
 import { getContact, getLead, updateLead, launchSalesBot } from "../services/kommo.service.js";
 
 const conversationMap = new Map();
-const KOMMO_SWITCH_ID = process.env.KOMMO_TEXT_FIELD_ID;
+const KOMMO_SWITCH_ID = Number(process.env.KOMMO_TEXT_FIELD_ID);
 const KOMMO_TEXT_FIELD_ID = Number(process.env.KOMMO_TEXT_FIELD_ID);
 const KOMMO_BOT_ID = process.env.KOMMO_BOT_ID;
 
