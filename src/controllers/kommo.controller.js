@@ -26,6 +26,7 @@ export async function kommoWebhook(req, res) {
     const checkboxValue = getCheckboxValue(lead, KOMMO_SWITCH_ID);
 
     if (checkboxValue === true) {
+      console.log(`Parsed -> `, parsed);
       await processKommoMessage(normalized, contact);
       console.log('--------------------------------------------------------------------------------------------------------------------------------------------------------');
     }
